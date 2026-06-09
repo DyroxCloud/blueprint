@@ -16,7 +16,7 @@ echo "      Blueprint Framework + Dyrox Addons"
 echo "================================================="
 echo -e "\e[0m"
 
-export PTERODACTYL_DIRECTORY=/var/www/pterodactyl
+PTERODACTYL_DIRECTORY="/var/www/pterodactyl"
 
 step() {
 echo -e "\e[1;34m[➤] $1\e[0m"
@@ -30,116 +30,79 @@ error() {
 echo -e "\e[1;31m[✘] $1\e[0m"
 }
 
-# Check Root
-
 if [ "$EUID" -ne 0 ]; then
-error "Please run this script as root."
+error "Please run as root."
 exit 1
 fi
 
-# Update System
+step "Checking Pterodactyl installation..."
 
-step "Updating package lists..."
+if [ ! -d "$PTERODACTYL_DIRECTORY" ]; then
+error "Pterodactyl not found at $PTERODACTYL_DIRECTORY"
+exit 1
+fi
+
+cd "$PTERODACTYL_DIRECTORY" || exit 1
+
+step "Updating packages..."
 apt update -y
-
-# Install Dependencies
 
 step "Installing dependencies..."
 apt install -y curl wget unzip zip git ca-certificates gnupg
 
-# Check Panel Directory
-
-step "Checking Pterodactyl installation..."
-if [ ! -d "$PTERODACTYL_DIRECTORY" ]; then
-error "Pterodactyl directory not found!"
-exit 1
-fi
-
-cd $PTERODACTYL_DIRECTORY
-
-# Download Blueprint Framework
-
 step "Downloading Blueprint Framework..."
-wget https://github.com/BlueprintFramework/framework/releases/latest/download/release.zip -O release.zip
+wget -O release.zip https://github.com/BlueprintFramework/framework/releases/latest/download/release.zip
 
 step "Extracting Blueprint..."
 unzip -o release.zip
 
-# Install Node.js 22
+step "Installing Node.js..."
 
-step "Setting up Node.js repository..."
 mkdir -p /etc/apt/keyrings
 
-curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key 
-| gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | 
+gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
 
-echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" \
-
-> /etc/apt/sources.list.d/nodesource.list
+echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" > /etc/apt/sources.list.d/nodesource.list
 
 apt update -y
-
-step "Installing Node.js..."
 apt install -y nodejs
-
-# Install Yarn
 
 step "Installing Yarn..."
 npm install -g yarn
 
-# Install Node Modules
-
 step "Installing panel dependencies..."
 yarn install --network-timeout 100000
 
-# Configure Blueprint
+step "Creating Blueprint configuration..."
 
-step "Configuring Blueprint..."
-
-cat > $PTERODACTYL_DIRECTORY/.blueprintrc << EOF
+cat > .blueprintrc << EOF
 WEBUSER="www-data";
 OWNERSHIP="www-data:www-data";
 USERSHELL="/bin/bash";
 EOF
 
-# Run Blueprint Setup
+step "Running Blueprint installer..."
 
-step "Running Blueprint setup..."
+chmod +x ./blueprint.sh
+./blueprint.sh
 
-chmod +x blueprint.sh
-bash blueprint.sh
-
-# Download Dyrox Addons
-
-step "Downloading Dyrox Cloud Addons..."
-
-wget https://github.com/dyroxcloud/blueprint/raw/main/Addons.zip -O Addons.zip
-
-# Extract Addons
+step "Downloading Dyrox Addons..."
+wget -O Addons.zip https://github.com/DyroxCloud/blueprint/raw/main/Addons.zip
 
 step "Extracting Addons..."
 unzip -o Addons.zip
 
-# Install Addons
-
-step "Installing Blueprint Addons..."
+step "Installing Addons..."
 blueprint -install *.blueprint
 
-# Cleanup
-
 step "Cleaning temporary files..."
-rm -f release.zip
-rm -f Addons.zip
-
-# Finish
+rm -f release.zip Addons.zip
 
 echo
 echo -e "\e[1;32m"
 echo "================================================="
 echo "        ✅ INSTALLATION COMPLETED"
 echo "           ☁️ DYROX CLOUD ☁️"
-echo "================================================="
-echo " Blueprint Framework Installed Successfully"
-echo " Dyrox Cloud Addons Installed Successfully"
 echo "================================================="
 echo -e "\e[0m"
